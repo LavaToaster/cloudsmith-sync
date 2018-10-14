@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type Error struct {
@@ -21,8 +22,8 @@ type Error struct {
 }
 
 type Client struct {
-	Files    cloudsmith_api.FilesApi
-	Packages cloudsmith_api.PackagesApi
+	Files         cloudsmith_api.FilesApi
+	Packages      cloudsmith_api.PackagesApi
 	KnownVersions []string
 }
 
@@ -111,7 +112,7 @@ func (c *Client) LoadPackages(owner, repo string) error {
 		}
 
 		for _, pkg := range pkgs {
-			c.KnownVersions = append(c.KnownVersions, pkg.Name + ":" + pkg.Version)
+			c.KnownVersions = append(c.KnownVersions, pkg.Name+":"+pkg.Version)
 		}
 
 		if len(pkgs) < pageSize {
@@ -124,9 +125,38 @@ func (c *Client) LoadPackages(owner, repo string) error {
 	return nil
 }
 
+func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error {
+	searchTerm := fmt.Sprintf("name:%s version:%s", name, version)
+
+	// !! BUG WORKAROUND !!
+	// Intentionally ignoring the err here due to a bug in the Cloudsmith api where it
+	// attempts to unmarshal an integer into a string
+	pkgs, rawList, _ := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
+
+	if err := checkForCloudsmithRequestError(rawList, nil); err != nil {
+		// If the error is because of a 404, we've reached the end of the list! or there is nothing to deal with
+		if rawList.StatusCode == 404 {
+			return nil
+		}
+
+		return err
+	}
+
+	if len(pkgs) == 0 {
+		return nil
+	}
+
+	// Delete the first matching version
+	pkg := pkgs[0]
+
+	c.Packages.PackagesDelete(owner, repo, strconv.Itoa(int(pkg.Identifier)))
+
+	return nil
+}
+
 func (c *Client) IsAwareOfPackage(name string, version string) bool {
 	for _, knownVersion := range c.KnownVersions {
-		if knownVersion == name + ":" + version {
+		if knownVersion == name+":"+version {
 			return true
 		}
 	}

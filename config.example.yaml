@@ -3,6 +3,10 @@ apiKey:
 dataDir: ${cwd}/data
 owner: example-org
 targetRepository: example-repo
+server: 0.0.0.0:8080
+# Select one (preferably long and complex) from https://randomkeygen.com/
+# or do your use own random generator.
+webhookSecret: please-dont-use-this-as-a-secret-or-spooky-ghosts-will-haunt-you-so-replace-me-:)
 repositories:
 - url: git@github.com:org/repo.git
   publishSource: true

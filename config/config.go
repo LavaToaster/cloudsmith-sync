@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"github.com/spf13/viper"
 	"os"
 	"strings"
@@ -17,6 +18,8 @@ type Config struct {
 	Owner            string
 	TargetRepository string
 	Repositories     []Repository
+	Server           string
+	WebhookSecret    string
 }
 
 func (config *Config) EnsureDirsExist() {
@@ -31,6 +34,16 @@ func (config *Config) EnsureDirsExist() {
 			os.Mkdir(dir, 0755)
 		}
 	}
+}
+
+func (config *Config) GetRepository(ssh string) (Repository, error) {
+	for _, repo := range config.Repositories {
+		if repo.Url == ssh {
+			return repo, nil
+		}
+	}
+
+	return Repository{}, errors.New("repository not found")
 }
 
 func (config *Config) GetRepoPath(dir string) string {
@@ -73,5 +86,7 @@ func NewConfigFromViper(workingDirectory string) *Config {
 		Owner:            viper.GetString("owner"),
 		TargetRepository: viper.GetString("targetRepository"),
 		Repositories:     repositories,
+		Server:           viper.GetString("server"),
+		WebhookSecret:    viper.GetString("webhookSecret"),
 	}
 }

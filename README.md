@@ -27,7 +27,3 @@ Running the sync utility
 $ go run main.go run
 ```
 
-## Roadmap
-
-- [ ] Add a http server that accepts github webhooks commit and tag events and publishes their respective
-    versions to Cloudsmith.

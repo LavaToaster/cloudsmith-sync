@@ -60,7 +60,11 @@ func OpenAndFetch(path string) (*git.Repository, error) {
 		RemoteCallbacks: *remoteCallbacks,
 	}
 
-	remote.Fetch([]string{}, fetchOptions, "")
+	err = remote.Fetch([]string{}, fetchOptions, "")
+
+	if err != nil {
+		return nil, err
+	}
 
 	return repo, nil
 }

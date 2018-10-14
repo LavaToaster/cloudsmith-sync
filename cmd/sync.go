@@ -95,7 +95,7 @@ var runCmd = &cobra.Command{
 func processPackage(
 	client *cloudsmith.Client,
 	repoCfg *config2.Repository,
-	repoPath, name string,
+	repoPath, branchOrTagName string,
 	isBranch bool,
 	oid *git2.Oid,
 ) {
@@ -104,10 +104,10 @@ func processPackage(
 
 	packageName := composerData["name"].(string)
 
-	version, normalisedVersion, err := composer.DeriveVersion(name, isBranch)
+	version, normalisedVersion, err := composer.DeriveVersion(branchOrTagName, isBranch)
 
 	if err != nil {
-		fmt.Printf("Skipping %s@%s due to %s...\n", packageName, name, err)
+		fmt.Printf("Skipping %s@%s due to %s...\n", packageName, branchOrTagName, err)
 		return
 	}
 
@@ -123,47 +123,24 @@ func processPackage(
 		return
 	}
 
-	createComposerPackage(
-		client,
-		composerData,
-		repoCfg.Url,
-		repoPath,
-		version,
-		normalisedVersion,
-		oid,
-		repoCfg.PublishSource,
-	)
-
-	s.FinalMSG = "done\n"
-	s.Stop()
-}
-
-func createComposerPackage(
-	client *cloudsmith.Client,
-	composerData composer.ComposerFile,
-	repoUrl, repoPath, version, normalizedVersion string,
-	oid *git2.Oid,
-	publishSource bool,
-) {
 	commitRef := oid.String()
 
 	var source *composer.Source
 
-	if publishSource {
+	if repoCfg.PublishSource {
 		source = &composer.Source{
-			Url:       repoUrl,
+			Url:       repoCfg.Url,
 			Type:      "git",
 			Reference: commitRef,
 		}
 	}
 
 	// Mutate composer.json file
-	err := composer.MutateComposerFile(repoPath, version, normalizedVersion, source)
+	err = composer.MutateComposerFile(repoPath, version, normalisedVersion, source)
 	exitOnError(err)
 
 	// Extract Info from the composer file
-	packageName := composerData["name"]
-	packageNameParts := strings.Split(packageName.(string), "/")
+	packageNameParts := strings.Split(packageName, "/")
 	namespace := packageNameParts[0]
 	name := packageNameParts[1]
 
@@ -179,4 +156,7 @@ func createComposerPackage(
 		_, err = client.UploadComposerPackage(config.Owner, config.TargetRepository, artifactPath)
 		exitOnError(err)
 	}
+
+	s.FinalMSG = "done\n"
+	s.Stop()
 }
