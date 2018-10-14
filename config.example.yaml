@@ -1,0 +1,11 @@
+# get this from https://cloudsmith.io/user/settings/api/
+apiKey:
+dataDir: ${cwd}/data
+owner: example-org
+targetRepository: example-repo
+repositories:
+- url: git@github.com:org/repo.git
+  publishSource: true
+
+- url: git@github.com:org/repo2.git
+  publishSource: true
