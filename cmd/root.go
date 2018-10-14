@@ -9,6 +9,7 @@ import (
 )
 
 var cfgFile string
+var dryRun bool
 var config *config2.Config
 var workingDirectory string
 
@@ -23,6 +24,7 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", workingDirectory+"/config.yaml", "config file location")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "test command before committing to it")
 }
 
 func initConfig() {

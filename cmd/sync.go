@@ -131,7 +131,6 @@ func processPackage(
 	s.Stop()
 }
 
-
 func createComposerPackage(
 	client *cloudsmith.Client,
 	composerData composer.ComposerFile,
@@ -168,7 +167,9 @@ func createComposerPackage(
 	err = git.CreateArtifactFromRepository(repoPath, artifactPath)
 	exitOnError(err)
 
-	// Upload archive to cloudsmith
-	_, err = client.UploadComposerPackage(config.Owner, config.TargetRepository, artifactPath)
-	exitOnError(err)
+	if !dryRun {
+		// Upload archive to cloudsmith
+		_, err = client.UploadComposerPackage(config.Owner, config.TargetRepository, artifactPath)
+		exitOnError(err)
+	}
 }
