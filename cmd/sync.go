@@ -99,13 +99,19 @@ func processPackage(
 	isBranch bool,
 	oid *git2.Oid,
 ) {
-	version := composer.DeriveVersion(name, isBranch)
 	composerData, err := composer.LoadFile(repoPath)
 	exitOnError(err)
 
 	packageName := composerData["name"].(string)
 
-	fmt.Printf("Processing %s@%s...", packageName, version)
+	version, normalisedVersion, err := composer.DeriveVersion(name, isBranch)
+
+	if err != nil {
+		fmt.Printf("Skipping %s@%s due to %s...\n", packageName, name, err)
+		return
+	}
+
+	fmt.Printf("Processing %s@%s...", packageName, name)
 
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	s.Prefix = " "
@@ -123,6 +129,7 @@ func processPackage(
 		repoCfg.Url,
 		repoPath,
 		version,
+		normalisedVersion,
 		oid,
 		repoCfg.PublishSource,
 	)
@@ -134,7 +141,7 @@ func processPackage(
 func createComposerPackage(
 	client *cloudsmith.Client,
 	composerData composer.ComposerFile,
-	repoUrl, repoPath, version string,
+	repoUrl, repoPath, version, normalizedVersion string,
 	oid *git2.Oid,
 	publishSource bool,
 ) {
@@ -151,7 +158,7 @@ func createComposerPackage(
 	}
 
 	// Mutate composer.json file
-	err := composer.MutateComposerFile(repoPath, version, source)
+	err := composer.MutateComposerFile(repoPath, version, normalizedVersion, source)
 	exitOnError(err)
 
 	// Extract Info from the composer file

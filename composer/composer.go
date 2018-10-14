@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -17,20 +16,24 @@ type Source struct {
 	Reference string `json:"reference"`
 }
 
-func DeriveVersion(tag string, isBranch bool) (version string) {
+func DeriveVersion(tagOrBranchName string, isBranch bool) (version string, normalizedVersion string, error error) {
+	version = tagOrBranchName
+
 	if isBranch == false {
-		version = tag
-		return
+		// strip the release- prefix from tags if present
+		version = strings.Replace(version, "release-", "", -1)
+	} else {
+		// add dev to signify it is a branch
+		version = "dev-" + strings.Replace(version, "origin/", "", 1)
 	}
 
-	tag = strings.TrimPrefix(tag, "origin/")
-	version = "dev-" + tag
+	parsedVersion, err := NormaliseVersion(version, "")
 
-	// If the branch name begins with an integer, we'll assume its a version branch and
-	// append ".x-dev" to the end of it. Instead of "dev-" at the beginning.
-	if _, err := strconv.Atoi(string(tag[0])); err == nil {
-		version = tag + ".x-dev"
+	if err != nil {
+		return "", "", err
 	}
+
+	normalizedVersion = parsedVersion
 
 	return
 }
@@ -47,7 +50,7 @@ func LoadFile(path string) (file ComposerFile, error error) {
 	return
 }
 
-func MutateComposerFile(path, version string, source *Source) error {
+func MutateComposerFile(path, version, normalizedVersion string, source *Source) error {
 	data, err := LoadFile(path)
 
 	if err != nil {
@@ -55,6 +58,7 @@ func MutateComposerFile(path, version string, source *Source) error {
 	}
 
 	data["version"] = version
+	data["version_normalized"] = normalizedVersion
 
 	if source != nil {
 		data["source"] = source
