@@ -111,7 +111,7 @@ func processPackage(
 		return
 	}
 
-	fmt.Printf("Processing %s@%s...", packageName, name)
+	fmt.Printf("Processing %s@%s...", packageName, version)
 
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	s.Prefix = " "
