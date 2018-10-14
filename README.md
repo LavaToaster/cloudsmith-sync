@@ -18,6 +18,8 @@ go get github.com/briandowns/spinner
 go get github.com/cloudsmith-io/cloudsmith-api
 ```
 
+Copy `config.example.yaml` to `config.yaml` and amend to your needs. It should be fairly straight forward. 😁
+
 ## Running
 
 Running the sync utility
