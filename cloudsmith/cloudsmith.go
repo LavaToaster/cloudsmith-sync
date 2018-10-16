@@ -93,7 +93,7 @@ func (c *Client) LoadPackages(owner, repo string) error {
 	page := 1
 
 	for {
-		pkgs, rawList, err := c.Packages.PackagesList(owner, repo, int32(page), int32(pageSize), "")
+		pkgs, rawList, err := c.Packages.PackagesList(owner, repo, int32(page), int32(pageSize), "status:completed format:composer")
 
 		if err := checkForCloudsmithRequestError(rawList, err); err != nil {
 			// If the error is because of a 404, we've reached the end of the list!
@@ -119,7 +119,7 @@ func (c *Client) LoadPackages(owner, repo string) error {
 }
 
 func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error {
-	searchTerm := fmt.Sprintf("name:%s version:%s status:completed", name, version)
+	searchTerm := fmt.Sprintf("name:%s version:%s status:completed format:composer", name, version)
 
 	pkgs, rawList, err := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
 
