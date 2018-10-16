@@ -119,7 +119,7 @@ func (c *Client) LoadPackages(owner, repo string) error {
 }
 
 func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error {
-	searchTerm := fmt.Sprintf("name:%s version:%s", name, version)
+	searchTerm := fmt.Sprintf("name:%s version:%s status:completed", name, version)
 
 	pkgs, rawList, err := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
 
