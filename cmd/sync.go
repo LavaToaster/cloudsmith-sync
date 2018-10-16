@@ -14,7 +14,10 @@ import (
 	"time"
 )
 
+var Target string
+
 func init() {
+	runCmd.Flags().StringVarP(&Target, "target", "t", "both", "Target [tags, branches, both]")
 	rootCmd.AddCommand(runCmd)
 }
 
@@ -61,31 +64,37 @@ var runCmd = &cobra.Command{
 			repo, err := git.CloneOrOpenAndUpdate(repoCfg.Url, repoPath)
 			exitOnError(err)
 
-			// Loop through tags first
-			tags, err := repo.Tags.List()
-
-			for _, tag := range tags {
-				oid, err := git.CheckoutTag(repo, tag)
+			if Target == "tags" || Target == "both" {
+				// Loop through tags first
+				tags, err := repo.Tags.List()
 				exitOnError(err)
 
-				processPackage(client, &repoCfg, repoPath, tag, false, oid)
+				for _, tag := range tags {
+					oid, err := git.CheckoutTag(repo, tag)
+					exitOnError(err)
+
+					processPackage(client, &repoCfg, repoPath, tag, false, oid)
+				}
 			}
 
-			branchIterator, err := repo.NewBranchIterator(git2.BranchRemote)
-			exitOnError(err)
+			if (Target == "branches" || Target == "both") && false {
 
-			err = branchIterator.ForEach(func(branch *git2.Branch, _ git2.BranchType) error {
-				branchName, err := branch.Name()
+				branchIterator, err := repo.NewBranchIterator(git2.BranchRemote)
 				exitOnError(err)
 
-				oid, err := git.CheckoutBranch(repo, branchName)
+				err = branchIterator.ForEach(func(branch *git2.Branch, _ git2.BranchType) error {
+					branchName, err := branch.Name()
+					exitOnError(err)
+
+					oid, err := git.CheckoutBranch(repo, branchName)
+					exitOnError(err)
+
+					processPackage(client, &repoCfg, repoPath, branchName, true, oid)
+
+					return nil
+				})
 				exitOnError(err)
-
-				processPackage(client, &repoCfg, repoPath, branchName, true, oid)
-
-				return nil
-			})
-			exitOnError(err)
+			}
 
 			fmt.Println()
 		}
