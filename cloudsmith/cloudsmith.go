@@ -144,6 +144,27 @@ func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error 
 	return nil
 }
 
+func (c *Client) RetryFailed(owner, repo string) error {
+	pkgs, rawList, err := c.Packages.PackagesList(owner, repo, 1, 100, "status:failed format:composer")
+
+	if err := checkForCloudsmithRequestError(rawList, err); err != nil {
+		// If the error is because of a 404, we've reached the end of the list! or there is nothing to deal with
+		if rawList.StatusCode != 404 {
+			return nil
+		}
+	}
+
+	if len(pkgs) == 0 {
+		return nil
+	}
+
+	for _, pkg := range pkgs {
+		c.Packages.PackagesResync(owner, repo, strconv.Itoa(int(pkg.Identifier)))
+	}
+
+	return nil
+}
+
 func (c *Client) IsAwareOfPackage(name string, version string) bool {
 	for _, knownVersion := range c.KnownVersions {
 		if knownVersion == name+":"+version {
