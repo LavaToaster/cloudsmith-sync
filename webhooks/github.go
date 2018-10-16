@@ -132,8 +132,6 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: Delete if it already exists in cloudsmith
-
 		err = processPackage(
 			Client,
 			&repoCfg,

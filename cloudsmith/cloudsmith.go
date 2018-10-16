@@ -77,11 +77,7 @@ func (c *Client) UploadComposerPackage(owner, repo, artifactPath string) (csPkg 
 
 	// Alright, the file uploaded, now to create a package on Cloudsmith and
 	// link it to the file
-	//
-	// !! BUG WORKAROUND !!
-	// Intentionally ignoring the err here due to a bug in the Cloudsmith api where it
-	// attempts to unmarshal an integer into a string
-	pkg, rawPkg, _ := c.Packages.PackagesUploadComposer(owner, repo, cloudsmith_api.PackagesUploadComposer{
+	pkg, rawPkg, err := c.Packages.PackagesUploadComposer(owner, repo, cloudsmith_api.PackagesUploadComposer{
 		PackageFile: upload.Identifier,
 	})
 
@@ -97,12 +93,9 @@ func (c *Client) LoadPackages(owner, repo string) error {
 	page := 1
 
 	for {
-		// !! BUG WORKAROUND !!
-		// Intentionally ignoring the err here due to a bug in the Cloudsmith api where it
-		// attempts to unmarshal an integer into a string
-		pkgs, rawList, _ := c.Packages.PackagesList(owner, repo, int32(page), int32(pageSize), "")
+		pkgs, rawList, err := c.Packages.PackagesList(owner, repo, int32(page), int32(pageSize), "")
 
-		if err := checkForCloudsmithRequestError(rawList, nil); err != nil {
+		if err := checkForCloudsmithRequestError(rawList, err); err != nil {
 			// If the error is because of a 404, we've reached the end of the list!
 			if rawList.StatusCode == 404 {
 				break
@@ -128,12 +121,9 @@ func (c *Client) LoadPackages(owner, repo string) error {
 func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error {
 	searchTerm := fmt.Sprintf("name:%s version:%s", name, version)
 
-	// !! BUG WORKAROUND !!
-	// Intentionally ignoring the err here due to a bug in the Cloudsmith api where it
-	// attempts to unmarshal an integer into a string
-	pkgs, rawList, _ := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
+	pkgs, rawList, err := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
 
-	if err := checkForCloudsmithRequestError(rawList, nil); err != nil {
+	if err := checkForCloudsmithRequestError(rawList, err); err != nil {
 		// If the error is because of a 404, we've reached the end of the list! or there is nothing to deal with
 		if rawList.StatusCode == 404 {
 			return nil
