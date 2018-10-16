@@ -17,6 +17,8 @@ type Config struct {
 	DataDir          string
 	Owner            string
 	TargetRepository string
+	SshKey           string
+	SshKeyPassphrase string
 	Repositories     []Repository
 	Server           string
 	WebhookSecret    string
@@ -84,7 +86,9 @@ func NewConfigFromViper(workingDirectory string) *Config {
 		ApiKey:           viper.GetString("apiKey"),
 		DataDir:          dataDir,
 		Owner:            viper.GetString("owner"),
-		TargetRepository: viper.GetString("targetRepository"),
+		TargetRepository: viper.GetString("sshKey"),
+		SshKey:           viper.GetString("targetRepository"),
+		SshKeyPassphrase: viper.GetString("sshKeyPassphrase"),
 		Repositories:     repositories,
 		Server:           viper.GetString("server"),
 		WebhookSecret:    viper.GetString("webhookSecret"),

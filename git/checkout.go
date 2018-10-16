@@ -1,6 +1,7 @@
 package git
 
 import (
+	"github.com/Lavoaster/cloudsmith-sync/config"
 	"gopkg.in/libgit2/git2go.v27"
 	"log"
 	"os"
@@ -11,9 +12,11 @@ var remoteCallbacks = &git.RemoteCallbacks{
 	CredentialsCallback:      credentialsCallback,
 }
 
+var Config *config.Config
+
 // TODO: Allow the config to specify call back :)
 func credentialsCallback(url string, usernameFromUrl string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-	ret, cred := git.NewCredSshKeyFromAgent(usernameFromUrl)
+	ret, cred := git.NewCredSshKey(usernameFromUrl, Config.SshKey+".pub", Config.SshKey+Config.SshKey, Config.SshKeyPassphrase)
 
 	return git.ErrorCode(ret), &cred
 }

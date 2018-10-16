@@ -4,6 +4,10 @@ dataDir: ${cwd}/data
 owner: example-org
 targetRepository: example-repo
 server: 0.0.0.0:8080
+# this should also be accompanied it's public key with the same name, but ending in .pub
+sshKey: /home/<example>/.ssh/id_rsa
+# this can be left if there is no passphrase
+sshKeyPassphrase:
 # Select one (preferably long and complex) from https://randomkeygen.com/
 # or do your use own random generator.
 webhookSecret: please-dont-use-this-as-a-secret-or-spooky-ghosts-will-haunt-you-so-replace-me-:)

@@ -33,6 +33,7 @@ var runCmd = &cobra.Command{
 		fmt.Println("Syncing " + totalRepositories + " repositories")
 
 		client := cloudsmith.NewClient(config.ApiKey)
+		git.Config = config
 
 		fmt.Print("Loading existing packages...")
 

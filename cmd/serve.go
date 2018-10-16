@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Lavoaster/cloudsmith-sync/cloudsmith"
+	"github.com/Lavoaster/cloudsmith-sync/git"
 	"github.com/Lavoaster/cloudsmith-sync/webhooks"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
@@ -33,6 +34,8 @@ var serveCmd = &cobra.Command{
 
 		webhooks.Client = cloudsmith.NewClient(config.ApiKey)
 		webhooks.Config = config
+
+		git.Config = config
 
 		srv := &http.Server{
 			Addr: config.Server,
