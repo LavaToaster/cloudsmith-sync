@@ -5,6 +5,7 @@ import (
 	"gopkg.in/libgit2/git2go.v27"
 	"log"
 	"os"
+	"strings"
 )
 
 var remoteCallbacks = &git.RemoteCallbacks{
@@ -16,7 +17,7 @@ var Config *config.Config
 
 // TODO: Allow the config to specify call back :)
 func credentialsCallback(url string, usernameFromUrl string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-	ret, cred := git.NewCredSshKey(usernameFromUrl, Config.SshKey+".pub", Config.SshKey, Config.SshKeyPassphrase)
+	ret, cred := git.NewCredSshKey(usernameFromUrl, Config.SshKey+".pub", Config.SshKey, strings.Trim(Config.SshKeyPassphrase, " "))
 
 	return git.ErrorCode(ret), &cred
 }
