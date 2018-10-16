@@ -118,9 +118,13 @@ func processPackage(
 	s.Start()
 
 	if client.IsAwareOfPackage(packageName, version) {
-		s.FinalMSG = "already exists\n"
-		s.Stop()
-		return
+		if isBranch {
+			client.DeletePackageIfExists(config.Owner, config.TargetRepository, packageName, version)
+		} else {
+			s.FinalMSG = "already exists\n"
+			s.Stop()
+			return
+		}
 	}
 
 	commitRef := oid.String()
