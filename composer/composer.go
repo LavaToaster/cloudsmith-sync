@@ -25,6 +25,13 @@ func DeriveVersion(tagOrBranchName string, isBranch bool) (version string, norma
 	} else {
 		// add dev to signify it is a branch
 		version = "dev-" + strings.Replace(version, "origin/", "", 1)
+
+		// parse version branches
+		aliasVersion := ParseNumericAliasPrefix(version)
+
+		if aliasVersion != "" {
+			version = aliasVersion
+		}
 	}
 
 	parsedVersion, err := NormaliseVersion(version, "")
