@@ -5,17 +5,15 @@ This tool is to sync your composer repositories from git to Cloudsmith.
 
 ## Setup
 
-This package assumes that there is a running SSH agent and it already has the key
-responsible for accessing the repositories.
-
-You may or may not need to manually fetch the dependencies required for this project.
+Get the project
 
 ```bash
-go get github.com/spf13/viper
-go get github.com/spf13/cobra
-go get gopkg.in/libgit2/git2go.v27
-go get github.com/briandowns/spinner
-go get github.com/cloudsmith-io/cloudsmith-api
+go get -u github.com/Lavoaster/cloudsmith-sync
+```
+
+Change to the directory. (modify if your $GOPATH is different from $HOME/go)
+```bash
+cd $HOME/go/src/github.com/Lavoaster/cloudsmith-sync/
 ```
 
 Copy `config.example.yaml` to `config.yaml` and amend to your needs. It should be fairly straight forward. 😁
