@@ -82,7 +82,16 @@ func CheckoutBranch(repo *git.Repository, branchName string) (*git.Oid, error) {
 	}
 	defer remoteBranch.Free()
 
-	return remoteBranch.Target(), repo.SetHeadDetached(remoteBranch.Target())
+	commit, err := repo.LookupCommit(remoteBranch.Target())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return remoteBranch.Target(), repo.ResetToCommit(commit, git.ResetHard, &git.CheckoutOpts{
+		// We don't care about any changes in the repo so we just let them get discarded.
+		Strategy: git.CheckoutForce,
+	})
 }
 
 func CheckoutTag(repo *git.Repository, tagName string) (*git.Oid, error) {
@@ -94,5 +103,14 @@ func CheckoutTag(repo *git.Repository, tagName string) (*git.Oid, error) {
 	}
 	defer remoteBranch.Free()
 
-	return remoteBranch.Target(), repo.SetHeadDetached(remoteBranch.Target())
+	commit, err := repo.LookupCommit(remoteBranch.Target())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return remoteBranch.Target(), repo.ResetToCommit(commit, git.ResetHard, &git.CheckoutOpts{
+		// We don't care about any changes in the repo so we just let them get discarded.
+		Strategy: git.CheckoutForce,
+	})
 }
