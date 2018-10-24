@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -23,14 +24,21 @@ func DeriveVersion(tagOrBranchName string, isBranch bool) (version string, norma
 		// strip the release- prefix from tags if present
 		version = strings.Replace(version, "release-", "", -1)
 	} else {
-		// add dev to signify it is a branch
-		version = "dev-" + strings.Replace(version, "origin/", "", 1)
+		rawBranch := strings.Replace(version, "origin/", "", 1)
+		parsedBranch, err := NormalizeBranch(rawBranch)
 
-		// parse version branches
-		aliasVersion := ParseNumericAliasPrefix(version)
+		if err != nil || "9999999-dev" == parsedBranch {
+			version = "dev-" + rawBranch
+		} else {
+			prefix := ""
 
-		if aliasVersion != "" {
-			version = aliasVersion
+			if rawBranch[0:1] == "v" {
+				prefix = "v"
+			}
+
+			exp := regexp.MustCompile(`(\.9{7})+`)
+
+			version = prefix + exp.ReplaceAllString(parsedBranch, ".x")
 		}
 	}
 
