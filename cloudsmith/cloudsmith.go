@@ -118,6 +118,23 @@ func (c *Client) LoadPackages(owner, repo string) error {
 	return nil
 }
 
+func (c *Client) RemoteCheckPackageExists(owner, repo, name, version string) (bool, error) {
+	searchTerm := fmt.Sprintf("name:%s version:%s format:composer", name, version)
+
+	pkgs, rawList, err := c.Packages.PackagesList(owner, repo, 1, 1, searchTerm)
+
+	if err := checkForCloudsmithRequestError(rawList, err); err != nil {
+		// If the error is because of a 404, we've reached the end of the list! or there is nothing to deal with
+		if rawList.StatusCode == 404 {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return len(pkgs) != 0, nil
+}
+
 func (c *Client) DeletePackageIfExists(owner, repo, name, version string) error {
 	searchTerm := fmt.Sprintf("name:%s version:%s status:completed format:composer", name, version)
 

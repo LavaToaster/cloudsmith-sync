@@ -8,7 +8,8 @@ import (
 	"github.com/Lavoaster/cloudsmith-sync/config"
 	"github.com/Lavoaster/cloudsmith-sync/git"
 	"gopkg.in/go-playground/webhooks.v5/github"
-	git2 "gopkg.in/libgit2/git2go.v27"
+	git2 "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"net/http"
 	"strconv"
 	"strings"
@@ -71,6 +72,16 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 
 		repo, err := git.CloneOrOpenAndUpdate(repoCfg.Url, repoPath)
 
+		worktree, err := repo.Worktree()
+
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		ref, err := repo.Reference(plumbing.ReferenceName(push.Ref), true)
+
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte(err.Error()))
@@ -81,14 +92,8 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 		tag := strings.TrimPrefix(push.Ref, "refs/tags/")
 		isBranch := tag == push.Ref
 
-		var oid *git2.Oid
-		var name string
-
 		if isBranch {
-			branchName = "origin/" + branchName
-			boid, err := git.CheckoutBranch(repo, branchName)
-			oid = boid
-			name = branchName
+			_, err := git.CheckoutBranch(repo, worktree, ref)
 
 			if err != nil {
 				w.WriteHeader(500)
@@ -96,9 +101,7 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			toid, err := git.CheckoutTag(repo, tag)
-			oid = toid
-			name = tag
+			_, err := git.CheckoutTag(repo, worktree, ref)
 
 			if err != nil {
 				w.WriteHeader(500)
@@ -117,7 +120,7 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 
 		packageName := composerData["name"].(string)
 
-		version, normalisedVersion, err := composer.DeriveVersion(name, isBranch)
+		version, normalisedVersion, err := composer.DeriveVersion(ref.Name().String(), isBranch)
 
 		if err != nil {
 			w.WriteHeader(200)
@@ -136,12 +139,16 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 			Client,
 			&repoCfg,
 			repoPath,
-			branchName,
+			ref.Name().Short(),
 			packageName,
 			version,
 			normalisedVersion,
-			oid,
+			ref.Hash().String(),
 		)
+
+		worktree.Reset(&git2.ResetOptions{
+			Mode: git2.HardReset,
+		})
 
 		if err != nil {
 			w.WriteHeader(500)
@@ -156,11 +163,8 @@ func HandleGithubWebhook(w http.ResponseWriter, r *http.Request) {
 func processPackage(
 	client *cloudsmith.Client,
 	repoCfg *config.Repository,
-	repoPath, branchOrTagName, packageName, version, normalisedVersion string,
-	oid *git2.Oid,
+	repoPath, branchOrTagName, packageName, version, normalisedVersion, commitRef string,
 ) error {
-	commitRef := oid.String()
-
 	var source *composer.Source
 
 	if repoCfg.PublishSource {
@@ -192,7 +196,7 @@ func processPackage(
 		return err
 	}
 
-	// Upload archive to cloudsmith
+	//Upload archive to cloudsmith
 	_, err = client.UploadComposerPackage(Config.Owner, Config.TargetRepository, artifactPath)
 
 	if err != nil {

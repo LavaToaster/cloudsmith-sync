@@ -2,30 +2,14 @@ package git
 
 import (
 	"github.com/Lavoaster/cloudsmith-sync/config"
-	"gopkg.in/libgit2/git2go.v27"
-	"log"
+	"gopkg.in/src-d/go-git.v4"
+	config2 "gopkg.in/src-d/go-git.v4/config"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"os"
-	"strings"
 )
 
-var remoteCallbacks = &git.RemoteCallbacks{
-	CertificateCheckCallback: certificateCheckCallback,
-	CredentialsCallback:      credentialsCallback,
-}
-
 var Config *config.Config
-
-// TODO: Allow the config to specify call back :)
-func credentialsCallback(url string, usernameFromUrl string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-	ret, cred := git.NewCredSshKey(usernameFromUrl, Config.SshKey+".pub", Config.SshKey, strings.Trim(Config.SshKeyPassphrase, " "))
-
-	return git.ErrorCode(ret), &cred
-}
-
-// TODO: Host key check _shooooould_ probably be something better than just accept it :)
-func certificateCheckCallback(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
-	return 0
-}
 
 func CloneOrOpenAndUpdate(url, path string) (*git.Repository, error) {
 	if _, err := os.Stat(path); err == nil {
@@ -35,82 +19,88 @@ func CloneOrOpenAndUpdate(url, path string) (*git.Repository, error) {
 	return Clone(url, path)
 }
 
+func GetAuth() (*ssh.PublicKeys, error) {
+	return ssh.NewPublicKeysFromFile("git", Config.SshKey, "")
+}
+
 func Clone(url, path string) (*git.Repository, error) {
-	return git.Clone(url, path, &git.CloneOptions{
-		FetchOptions: &git.FetchOptions{
-			RemoteCallbacks: *remoteCallbacks,
-		},
-		CheckoutOpts: &git.CheckoutOpts{
-			// We don't care about any changes in the repo so we just let them get discarded.
-			Strategy: git.CheckoutForce,
-		},
+	auth, err := GetAuth()
+
+	if err != nil {
+		return nil, err
+	}
+
+	git.PlainClone(path, false, &git.CloneOptions{
+		URL:  url,
+		Auth: auth,
 	})
+
+	return OpenAndFetch(path)
 }
 
 func OpenAndFetch(path string) (*git.Repository, error) {
-	repo, err := git.OpenRepository(path)
+	repo, err := git.PlainOpen(path)
 
 	if err != nil {
 		return nil, err
 	}
 
-	remote, err := repo.Remotes.Lookup("origin")
+	auth, err := GetAuth()
 
 	if err != nil {
 		return nil, err
 	}
 
-	fetchOptions := &git.FetchOptions{
-		RemoteCallbacks: *remoteCallbacks,
-	}
+	err = repo.Fetch(&git.FetchOptions{
+		RefSpecs: []config2.RefSpec{
+			"refs/tags/*:refs/tags/*",
+			"refs/heads/*:refs/heads/*",
+		},
+		Auth: auth,
+	})
 
-	err = remote.Fetch([]string{}, fetchOptions, "")
-
-	if err != nil {
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func CheckoutBranch(repo *git.Repository, branchName string) (*git.Oid, error) {
-	// Getting the reference for the remote branch
-	remoteBranch, err := repo.LookupBranch(branchName, git.BranchRemote)
-	if err != nil {
-		log.Print("Failed to find remote branch: " + branchName)
-		return nil, err
-	}
-	defer remoteBranch.Free()
-
-	commit, err := repo.LookupCommit(remoteBranch.Target())
-
-	if err != nil {
-		return nil, err
-	}
-
-	return remoteBranch.Target(), repo.ResetToCommit(commit, git.ResetHard, &git.CheckoutOpts{
-		// We don't care about any changes in the repo so we just let them get discarded.
-		Strategy: git.CheckoutForce,
+func CheckoutBranch(repo *git.Repository, worktree *git.Worktree, ref *plumbing.Reference) (string, error) {
+	err := worktree.Checkout(&git.CheckoutOptions{
+		Branch: ref.Target(),
 	})
+
+	if err != nil {
+		return "", err
+	}
+
+	head, err := repo.Head()
+
+	if err != nil {
+		return "", err
+	}
+
+	return head.Hash().String(), nil
 }
 
-func CheckoutTag(repo *git.Repository, tagName string) (*git.Oid, error) {
-	// Getting the reference for the remote branch
-	remoteBranch, err := repo.References.Lookup("refs/tags/" + tagName)
-	if err != nil {
-		log.Print("Failed to find tag: " + tagName)
-		return nil, err
-	}
-	defer remoteBranch.Free()
+func CheckoutTag(repo *git.Repository, worktree *git.Worktree, ref *plumbing.Reference) (string, error) {
+	hash := ref.Hash()
 
-	commit, err := repo.LookupCommit(remoteBranch.Target())
+	// test for annotated ref
+	tagObject, err := repo.TagObject(ref.Hash())
 
-	if err != nil {
-		return nil, err
+	if err == nil {
+		hash = tagObject.Target
 	}
 
-	return remoteBranch.Target(), repo.ResetToCommit(commit, git.ResetHard, &git.CheckoutOpts{
-		// We don't care about any changes in the repo so we just let them get discarded.
-		Strategy: git.CheckoutForce,
+	err = worktree.Checkout(&git.CheckoutOptions{
+		Hash: hash,
 	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return ref.Hash().String(), nil
 }

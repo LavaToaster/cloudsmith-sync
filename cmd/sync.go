@@ -8,7 +8,7 @@ import (
 	"github.com/Lavoaster/cloudsmith-sync/git"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
-	git2 "gopkg.in/libgit2/git2go.v27"
+	git2 "gopkg.in/src-d/go-git.v4"
 	"strconv"
 	"strings"
 	"time"
@@ -65,36 +65,52 @@ var runCmd = &cobra.Command{
 			repo, err := git.CloneOrOpenAndUpdate(repoCfg.Url, repoPath)
 			exitOnError(err)
 
-			if Target == "tags" || Target == "both" {
-				// Loop through tags first
-				tags, err := repo.Tags.List()
-				exitOnError(err)
+			// Get Remote
+			remote, err := repo.Remote("origin")
+			exitOnError(err)
 
-				for _, tag := range tags {
-					oid, err := git.CheckoutTag(repo, tag)
-					exitOnError(err)
+			auth, err := git.GetAuth()
+			exitOnError(err)
 
-					processPackage(client, &repoCfg, repoPath, tag, false, oid)
+			refList, err := remote.List(&git2.ListOptions{Auth: auth})
+			exitOnError(err)
+
+			worktree, err := repo.Worktree()
+			exitOnError(err)
+
+			for _, ref := range refList {
+				isBranch := strings.HasPrefix(ref.Name().String(), "refs/heads/")
+				isTag := strings.HasPrefix(ref.Name().String(), "refs/tags/")
+
+				if !isBranch && !isTag {
+					continue
 				}
-			}
 
-			if (Target == "branches" || Target == "both") && false {
+				// Tags
+				if isTag {
+					_, err := git.CheckoutTag(repo, worktree, ref)
 
-				branchIterator, err := repo.NewBranchIterator(git2.BranchRemote)
-				exitOnError(err)
+					if err != nil {
+						fmt.Printf("Skipping tag %v - %v\n", ref, err.Error())
+						continue
+					}
+				}
 
-				err = branchIterator.ForEach(func(branch *git2.Branch, _ git2.BranchType) error {
-					branchName, err := branch.Name()
-					exitOnError(err)
+				// Branch
+				if isBranch {
+					_, err := git.CheckoutBranch(repo, worktree, ref)
 
-					oid, err := git.CheckoutBranch(repo, branchName)
-					exitOnError(err)
+					if err != nil {
+						fmt.Printf("Skipping branch %v - %v\n", ref, err.Error())
+						continue
+					}
+				}
 
-					processPackage(client, &repoCfg, repoPath, branchName, true, oid)
+				processPackage(client, &repoCfg, repoPath, ref.Name().Short(), isBranch, ref.Hash().String())
 
-					return nil
+				worktree.Reset(&git2.ResetOptions{
+					Mode: git2.HardReset,
 				})
-				exitOnError(err)
 			}
 
 			fmt.Println()
@@ -107,7 +123,7 @@ func processPackage(
 	repoCfg *config2.Repository,
 	repoPath, branchOrTagName string,
 	isBranch bool,
-	oid *git2.Oid,
+	commitRef string,
 ) {
 	composerData, err := composer.LoadFile(repoPath)
 	exitOnError(err)
@@ -130,14 +146,26 @@ func processPackage(
 	if client.IsAwareOfPackage(packageName, version) {
 		if isBranch {
 			client.DeletePackageIfExists(config.Owner, config.TargetRepository, packageName, version)
+
+			s.Suffix = " Waiting for package to be deleted"
+
+			for {
+				exists, err := client.RemoteCheckPackageExists(config.Owner, config.TargetRepository, packageName, version)
+				exitOnError(err)
+
+				if !exists {
+					s.Suffix = ""
+					break
+				}
+
+				time.Sleep(2 * time.Second)
+			}
 		} else {
 			s.FinalMSG = "already exists\n"
 			s.Stop()
 			return
 		}
 	}
-
-	commitRef := oid.String()
 
 	var source *composer.Source
 
